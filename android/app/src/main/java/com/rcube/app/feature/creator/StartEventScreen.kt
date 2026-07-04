@@ -15,7 +15,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
@@ -37,12 +39,14 @@ fun StartEventScreen(
     onStarted: () -> Unit,
 ) {
     val repo = LocalAppContainer.current.repository
+    val scope = rememberCoroutineScope()
     val bookings by repo.creatorBookings.collectAsStateWithLifecycle()
     val booking = bookings.firstOrNull { it.id == bookingId }
     val keyboard = LocalSoftwareKeyboardController.current
 
     var otp by remember { mutableStateOf("") }
     var error by remember { mutableStateOf(false) }
+    var starting by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
 
     Scaffold(topBar = { RcubeTopBar(title = "Start Event", onBack = onBack) }) { padding ->
@@ -96,15 +100,25 @@ fun StartEventScreen(
             Spacer(Modifier.height(28.dp))
             PrimaryButton(
                 text = "Start performance",
-                enabled = otp.length == 4,
+                enabled = otp.length == 4 && !starting,
+                loading = starting,
                 onClick = {
                     keyboard?.hide()
-                    if (repo.startEventWithOtp(bookingId, otp)) onStarted() else error = true
+                    scope.launch {
+                        starting = true
+                        val ok = repo.startEventWithOtp(bookingId, otp)
+                        starting = false
+                        if (ok) onStarted() else error = true
+                    }
                 },
             )
             Spacer(Modifier.height(12.dp))
             Text(
-                "Tip: in this demo the code for a confirmed booking is 4291.",
+                if (repo.isBackendConfigured) {
+                    "The organizer sees this 4-digit code in their app."
+                } else {
+                    "Tip: in demo mode the code for the confirmed booking is 4291."
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -124,7 +124,6 @@ fun RcubeApp() {
                     phone = session.phone,
                     onBack = { navController.popBackStack() },
                     onVerified = {
-                        repo.verifyOtpAndSignIn()
                         navController.navigate(ModeIntroRoute) {
                             popUpTo(PhoneRoute) { inclusive = true }
                         }

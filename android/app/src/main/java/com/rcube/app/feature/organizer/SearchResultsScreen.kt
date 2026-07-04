@@ -21,6 +21,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import com.rcube.app.core.designsystem.component.EmptyState
 import com.rcube.app.core.designsystem.component.RcubeCard
 import com.rcube.app.core.designsystem.component.RcubeTopBar
+import com.rcube.app.core.designsystem.component.SkeletonCard
 import com.rcube.app.core.designsystem.component.VerifiedBadge
 import com.rcube.app.core.util.formatInr
 import com.rcube.app.data.model.CreatorCategory
@@ -46,14 +49,30 @@ fun SearchResultsScreen(
     onOpenProfile: (String) -> Unit,
 ) {
     val repo = LocalAppContainer.current.repository
-    val results = repo.searchDirectory(category, radiusKm.toFloat())
+    val resultsState = produceState<List<CreatorProfile>?>(
+        initialValue = null, category, radiusKm,
+    ) {
+        value = runCatching { repo.searchCreators(category, radiusKm.toFloat()) }
+            .getOrDefault(emptyList())
+    }
+    val results = resultsState.value
 
     Scaffold(
         topBar = {
             RcubeTopBar(title = "${category.label}s · ${eventType.label}", onBack = onBack)
         },
     ) { inner ->
-        if (results.isEmpty()) {
+        if (results == null) {
+            LazyColumn(
+                contentPadding = PaddingValues(
+                    start = 20.dp, end = 20.dp,
+                    top = inner.calculateTopPadding() + 4.dp, bottom = 24.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                items(3) { SkeletonCard() }
+            }
+        } else if (results.isEmpty()) {
             Box(Modifier.padding(inner)) {
                 EmptyState(
                     icon = Icons.Filled.SearchOff,

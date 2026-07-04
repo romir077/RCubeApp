@@ -1,9 +1,20 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
+
+// Read the backend URL + API key from local.properties (never committed).
+// Leave them blank to run the app in offline demo mode with seeded data.
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+val rcubeApiUrl: String = localProps.getProperty("RCUBE_API_URL", "")
+val rcubeApiKey: String = localProps.getProperty("RCUBE_API_KEY", "")
 
 android {
     namespace = "com.rcube.app"
@@ -17,6 +28,9 @@ android {
         versionName = "1.0.0"
 
         vectorDrawables { useSupportLibrary = true }
+
+        buildConfigField("String", "RCUBE_API_URL", "\"$rcubeApiUrl\"")
+        buildConfigField("String", "RCUBE_API_KEY", "\"$rcubeApiKey\"")
     }
 
     buildTypes {
@@ -73,6 +87,9 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
 
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
     implementation(libs.coil.compose)
 
     debugImplementation(libs.androidx.ui.tooling)

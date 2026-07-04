@@ -32,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,7 +52,9 @@ import com.rcube.app.core.designsystem.component.RcubeTopBar
 import com.rcube.app.core.designsystem.component.TextActionButton
 import com.rcube.app.core.designsystem.theme.RcubePalette
 import com.rcube.app.data.model.Mode
+import com.rcube.app.di.LocalAppContainer
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 private fun CubeMark(size: androidx.compose.ui.unit.Dp = 56.dp) {
@@ -149,8 +152,12 @@ fun OtpScreen(
     onBack: () -> Unit,
     onVerified: () -> Unit,
 ) {
+    val repo = LocalAppContainer.current.repository
+    val scope = rememberCoroutineScope()
     var otp by remember { mutableStateOf("") }
     var secondsLeft by remember { mutableIntStateOf(30) }
+    var loading by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
     val focusRequester = remember { FocusRequester() }
     val complete = otp.length == 6
 
@@ -202,11 +209,35 @@ fun OtpScreen(
                 TextActionButton(text = "Resend code", onClick = { secondsLeft = 30 })
             }
 
+            if (error != null) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    error!!,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+
             Spacer(Modifier.height(32.dp))
-            PrimaryButton(text = "Verify", onClick = onVerified, enabled = complete)
+            PrimaryButton(
+                text = "Verify",
+                enabled = complete && !loading,
+                loading = loading,
+                onClick = {
+                    scope.launch {
+                        loading = true
+                        error = null
+                        val ok = repo.verifyOtp(otp)
+                        loading = false
+                        if (ok) onVerified() else {
+                            error = "We couldn't verify that code. Please try again."
+                        }
+                    }
+                },
+            )
             Spacer(Modifier.height(12.dp))
             Text(
-                "Tip: any 6-digit code works in this demo.",
+                "Tip: any 6-digit code works while the backend is in demo mode.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -33,7 +33,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -60,6 +62,7 @@ fun BookingFormScreen(
     onSubmitted: (String) -> Unit,
 ) {
     val repo = LocalAppContainer.current.repository
+    val scope = rememberCoroutineScope()
     val profile = repo.profileById(profileId)
     val service = profile?.services?.firstOrNull { it.id == serviceId }
 
@@ -68,6 +71,7 @@ fun BookingFormScreen(
     var venue by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
     var showDatePicker by remember { mutableStateOf(false) }
+    var submitting by remember { mutableStateOf(false) }
 
     Scaffold(topBar = {
         RcubeTopBar(title = "Book ${profile?.displayName ?: ""}", onBack = onBack)
@@ -133,10 +137,17 @@ fun BookingFormScreen(
             Spacer(Modifier.height(28.dp))
             PrimaryButton(
                 text = "Send booking request",
-                enabled = venue.isNotBlank(),
+                enabled = venue.isNotBlank() && !submitting,
+                loading = submitting,
                 onClick = {
-                    val id = repo.createBooking(profile, service, eventDate, eventType, venue, notes)
-                    onSubmitted(id)
+                    scope.launch {
+                        submitting = true
+                        val id = runCatching {
+                            repo.createBooking(profile, service, eventDate, eventType, venue, notes)
+                        }.getOrNull()
+                        submitting = false
+                        if (id != null) onSubmitted(id)
+                    }
                 },
             )
         }
