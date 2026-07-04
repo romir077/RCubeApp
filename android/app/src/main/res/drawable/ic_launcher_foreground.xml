@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Isometric "Recognition Cube" centered in the 72dp safe zone -->
+    <!-- Top face -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,26 L80,41 L54,56 L28,41 Z" />
+    <!-- Left face -->
+    <path
+        android:fillColor="#F0DAC9"
+        android:pathData="M28,41 L28,71 L54,86 L54,56 Z" />
+    <!-- Right face -->
+    <path
+        android:fillColor="#F8ECE1"
+        android:pathData="M54,56 L54,86 L80,71 L80,41 Z" />
+</vector>

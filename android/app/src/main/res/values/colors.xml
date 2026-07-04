@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="rc_bg">#FBF9F6</color>
+    <color name="rc_primary">#E4572E</color>
+    <color name="rc_ink">#1E1B18</color>
+    <color name="rc_cream">#FFF7EF</color>
+</resources>
