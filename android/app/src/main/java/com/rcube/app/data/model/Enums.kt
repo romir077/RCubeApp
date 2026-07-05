@@ -30,13 +30,26 @@ enum class EventType(val label: String, val emoji: String) {
     OTHER("Other", "\uD83C\uDF89"),
 }
 
-/** Creator profile lifecycle (Bible §19.2). */
+/** Creator profile lifecycle (skill/socials review, separate from Aadhaar identity). */
 enum class ProfileStatus(val label: String) {
     DRAFT("Draft"),
     PENDING_REVIEW("Pending Review"),
     APPROVED("Approved"),
-    REJECTED("Needs Changes"),
+    REJECTED("Changes requested"),
     SUSPENDED("Suspended"),
+}
+
+/** A portfolio media item supporting a creator's skill claim. */
+enum class MediaType { IMAGE, VIDEO }
+
+/** Account-level identity (Aadhaar) verification status. */
+enum class AadhaarStatus(val label: String) {
+    NOT_SUBMITTED("Not submitted"),
+    PENDING_REVIEW("Under review"),
+    VERIFIED("Verified"),
+    REJECTED("Needs changes");
+
+    val isVerified: Boolean get() = this == VERIFIED
 }
 
 enum class BookingGroup { PENDING, ACTIVE, DONE }

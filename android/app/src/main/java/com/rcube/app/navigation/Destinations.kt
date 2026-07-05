@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 // ---- Auth ----
 @Serializable data object PhoneRoute
 @Serializable data object OtpRoute
+@Serializable data object NameRoute
 @Serializable data object ModeIntroRoute
 
 // ---- Creator tabs ----
@@ -17,24 +18,25 @@ import kotlinx.serialization.Serializable
 // ---- Organizer tabs ----
 @Serializable data object DiscoverRoute
 @Serializable data object MyBookingsRoute
+@Serializable data object FiltersRoute
 
 // ---- Shared ----
 @Serializable data object AccountRoute
 @Serializable data object NotificationsRoute
+@Serializable data object SupportRoute
+@Serializable data object TermsRoute
 
 // ---- Creator details ----
 @Serializable data class RequestDetailRoute(val bookingId: String)
 @Serializable data class StartEventRoute(val bookingId: String)
 @Serializable data class ProfileEditorRoute(val profileId: String? = null)
-@Serializable data class ServiceEditorRoute(val profileId: String)
+@Serializable data class ServiceEditorRoute(
+    val profileId: String,
+    val serviceId: String? = null,
+)
 @Serializable data class ProfilePreviewRoute(val profileId: String)
 
 // ---- Organizer details ----
-@Serializable data class SearchResultsRoute(
-    val category: String,
-    val eventType: String,
-    val radiusKm: Int,
-)
 @Serializable data class CreatorPublicRoute(
     val profileId: String,
     val eventType: String? = null,

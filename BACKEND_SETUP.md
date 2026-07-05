@@ -140,7 +140,9 @@ You should see `{"ok":true,"data":{"pong":true,...}}`.
 | Commission % | `backend/Code.gs` → `COMMISSION_PCT` | default `15` | Platform take-rate |
 | OTP dev mode | `backend/Code.gs` → `DEV_MODE` | default `true` | `true` = accept any code (no SMS) |
 | Accept/pay windows | `backend/Code.gs` → `ACCEPT_WINDOW_HOURS`, `PAYMENT_WINDOW_HOURS` | default `24` | Booking timers |
-| Admin approve a creator | Google Sheet → `creator_profiles` tab | set `status` = `APPROVED` | Manual verification for MVP |
+| **Verify a user's identity (Aadhaar)** | Google Sheet → `users` tab | open the `aadhaarFront` / `aadhaarBack` **Drive URLs** to view the photos, then set `aadhaarStatus` = `VERIFIED` if the name matches | Review #1 (identity). Gate for **both** roles; the name locks once verified. |
+| **Review a creator profile (skill + socials)** | Google Sheet → `creator_profiles` tab | check the profile's **portfolio** (`media1`/`media2`/`media3`, each stored as `TYPE\|driveUrl` — the URL is clickable) + `profilePhoto` (a Drive URL) + Instagram/YouTube, then set `status` = `APPROVED`, or `status` = `REJECTED` and fill `rejectionReason` to request changes | Review #2 (per-profile). Discoverable only when the profile is `APPROVED`, the owner is Aadhaar-verified, **and** `active` is not `FALSE`. |
+| **Read ratings & comments** | Google Sheet → `reviews` tab | each row is an organizer's `rating` (1–5) + `comment` for a `profileId`; the app shows the average + all comments on the creator's profile | Written automatically when an organizer completes an event. |
 | Process a payout | Google Sheet → `bookings` tab | set `payoutStatus` = `TRANSFERRED` | Manual payout for MVP |
 
 > After editing `local.properties`, **Sync + Rebuild**. After editing `Code.gs`,
@@ -155,7 +157,7 @@ You should see `{"ok":true,"data":{"pong":true,...}}`.
 | **Login OTP** | `DEV_MODE=true` accepts any 4–6 digit code; the user row is real | Send real SMS OTP | **Firebase** (free tier) *or* an SMS provider like **MSG91 / Twilio** (paid) |
 | **Payments** | "Pay" is simulated; booking is marked confirmed | Real UPI/card payment + escrow | **Razorpay** account (see below) |
 | **Payouts** | Manual: edit `payoutStatus` in the Sheet | Automated bank transfers | **Razorpay Route / Payouts** |
-| **Creator verification** | Manual: set `status=APPROVED` in the Sheet | Admin web panel | — (build the React admin from the Bible) |
+| **Identity verification (Aadhaar)** | Manual: set `users.aadhaarStatus=VERIFIED` in the Sheet | Admin web panel + real Aadhaar/KYC | — (build the React admin from the Bible) |
 
 ### When you're ready for real SMS OTP (Firebase — free)
 1. Create a project at [console.firebase.google.com](https://console.firebase.google.com).
@@ -177,6 +179,14 @@ You should see `{"ok":true,"data":{"pong":true,...}}`.
 
 | Symptom | Fix |
 |---|---|
+| `#ERROR!` in the `phone` column of the sheet | An older `Code.gs` stored phone numbers (leading `+`) as formulas. Re-paste the latest `backend/Code.gs`, run the **`reset`** function, and refresh the sheet — phones are now stored as text. |
+| Search shows no distances / creators not filtered by radius | The `creator_profiles` tab needs the new `lat` / `lng` columns. Re-paste the latest `backend/Code.gs`, run **`reset`** (recreates tabs + reseeds with coordinates), **redeploy a new version**, then rebuild the app and grant it **location permission** when prompted. |
+| Can't search/book, or a creator gets no requests | That user isn't **identity-verified**. In the `users` tab set their `aadhaarStatus` = `VERIFIED`, then pull-to-refresh in the app. New `users` columns (`firstName`, `lastName`, `aadhaarStatus`, …) require re-pasting `Code.gs` + running **`reset`** + **redeploying**. |
+| Submitting Aadhaar/portfolio fails / asks for new permission | The backend writes photos & videos to Google Drive, which needs authorization. Open the Apps Script editor, run `setup` (or any function) once and **allow Drive access**, then redeploy. Aadhaar stays **private** ("RCube Aadhaar (private)"); portfolio & profile photos go to **public** ("RCube Portfolio (public)" / "RCube Photos (public)") folders shared as *anyone-with-link* so the app can render them. |
+| Portfolio thumbnails show grey / photos don't load | Old builds stored a Drive *view-page* URL (not an image). Re-paste the latest `backend/Code.gs`, run **`reset`**, and **redeploy** — portfolio now uses public Drive thumbnail URLs. Also confirm your Google account allows *anyone-with-link* sharing. |
+| Portfolio, profile photo, or service edit/delete not working | Schema changed: `creator_profiles` now has `profilePhoto` + `media1`/`media2`/`media3`, `users` has `profilePhoto`, and the old `portfolio` tab is gone. Re-paste `Code.gs` + run **`reset`** + **redeploy**. Max 3 media/profile; videos capped at ~10 MB. |
+| Nothing on Discover, ratings/deactivate/delete missing, or blank homepage | Latest schema adds an `active` column on `creator_profiles` and a new `reviews` tab, and stores media/photos as **Drive URLs**. Re-paste `backend/Code.gs`, run **`reset`**, and **redeploy a new version**, then rebuild the app. Discover shows all verified creators within the chosen radius with **no** category pre-selected. |
+| Portfolio video opens Google Drive instead of playing | Old builds opened the Drive page. The app now streams video in a native ExoPlayer and stores a direct URL — rebuild the app, and re-paste/redeploy `Code.gs` so media is saved as public URLs. |
 | App shows demo data after adding the URL | You didn't **Sync + Rebuild**; `BuildConfig` is generated at build time. |
 | `{"ok":false,"error":"unauthorized"}` | `RCUBE_API_KEY` (app) ≠ `API_KEY` (`Code.gs`). Make them identical; redeploy. |
 | `No spreadsheet bound` error | The script wasn't created from **Extensions → Apps Script** inside the sheet. Recreate it there, or set `SPREADSHEET_ID` in `Code.gs`. |

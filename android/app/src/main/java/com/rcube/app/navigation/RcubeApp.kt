@@ -12,6 +12,8 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -19,7 +21,10 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import kotlinx.coroutines.delay
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -31,13 +36,16 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
-import com.rcube.app.data.model.CreatorCategory
 import com.rcube.app.data.model.EventType
+import com.rcube.app.data.model.BookingStatus
 import com.rcube.app.data.model.Mode
 import com.rcube.app.di.LocalAppContainer
 import com.rcube.app.feature.account.AccountScreen
+import com.rcube.app.feature.account.LegalScreen
 import com.rcube.app.feature.account.NotificationsScreen
+import com.rcube.app.feature.account.SupportScreen
 import com.rcube.app.feature.auth.ModeIntroScreen
+import com.rcube.app.feature.auth.NameEntryScreen
 import com.rcube.app.feature.auth.OtpScreen
 import com.rcube.app.feature.auth.PhoneScreen
 import com.rcube.app.feature.creator.CreatorProfilesScreen
@@ -51,11 +59,10 @@ import com.rcube.app.feature.organizer.BookingFormScreen
 import com.rcube.app.feature.organizer.CreatorPublicScreen
 import com.rcube.app.feature.organizer.DiscoverScreen
 import com.rcube.app.feature.organizer.EventOtpScreen
+import com.rcube.app.feature.organizer.FiltersScreen
 import com.rcube.app.feature.organizer.MyBookingsScreen
 import com.rcube.app.feature.organizer.OrganizerBookingDetailScreen
 import com.rcube.app.feature.organizer.PaymentScreen
-import com.rcube.app.feature.organizer.SearchResultsScreen
-
 private data class TabItem(
     val label: String,
     val selectedIcon: ImageVector,
@@ -76,6 +83,30 @@ fun RcubeApp() {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDest = backStackEntry?.destination
 
+    val creatorBookings by repo.creatorBookings.collectAsStateWithLifecycle()
+    val pendingRequests = creatorBookings.count { it.status == BookingStatus.PENDING }
+
+    // Keep every tab live: refresh server state every 5 seconds while signed in.
+    LaunchedEffect(session.loggedIn) {
+        if (session.loggedIn && repo.isBackendConfigured) {
+            while (true) {
+                delay(5000)
+                repo.refresh()
+            }
+        }
+    }
+
+    // Start at the right place based on any restored session (persisted login).
+    val startDestination: Any = remember {
+        val s = repo.session.value
+        when {
+            !s.loggedIn -> PhoneRoute
+            s.needsName -> NameRoute
+            s.needsModeSelection -> ModeIntroRoute
+            else -> homeRouteFor(s.mode)
+        }
+    }
+
     val tabs = if (session.mode == Mode.CREATOR) creatorTabs else organizerTabs
     val onTab = tabs.any { it.isSelected(currentDest) }
     val showBar = session.loggedIn && !session.needsModeSelection && onTab
@@ -86,14 +117,23 @@ fun RcubeApp() {
                 NavigationBar(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface) {
                     tabs.forEach { tab ->
                         val selected = tab.isSelected(currentDest)
+                        val badgeCount = if (tab.route == CreatorRequestsRoute) pendingRequests else 0
                         NavigationBarItem(
                             selected = selected,
                             onClick = { navController.switchTab(tab.route, session.mode) },
                             icon = {
-                                Icon(
-                                    if (selected) tab.selectedIcon else tab.unselectedIcon,
-                                    contentDescription = tab.label,
-                                )
+                                BadgedBox(
+                                    badge = {
+                                        if (badgeCount > 0) {
+                                            Badge { Text(if (badgeCount > 9) "9+" else "$badgeCount") }
+                                        }
+                                    },
+                                ) {
+                                    Icon(
+                                        if (selected) tab.selectedIcon else tab.unselectedIcon,
+                                        contentDescription = tab.label,
+                                    )
+                                }
                             },
                             label = { Text(tab.label) },
                             colors = NavigationBarItemDefaults.colors(
@@ -107,7 +147,7 @@ fun RcubeApp() {
             }
         },
     ) { innerPadding ->
-        NavHost(navController = navController, startDestination = PhoneRoute) {
+        NavHost(navController = navController, startDestination = startDestination) {
 
             // ---- Auth ----
             composable<PhoneRoute> {
@@ -124,8 +164,18 @@ fun RcubeApp() {
                     phone = session.phone,
                     onBack = { navController.popBackStack() },
                     onVerified = {
-                        navController.navigate(ModeIntroRoute) {
+                        val next: Any = if (repo.session.value.needsName) NameRoute else ModeIntroRoute
+                        navController.navigate(next) {
                             popUpTo(PhoneRoute) { inclusive = true }
+                        }
+                    },
+                )
+            }
+            composable<NameRoute> {
+                NameEntryScreen(
+                    onSaved = {
+                        navController.navigate(ModeIntroRoute) {
+                            popUpTo(NameRoute) { inclusive = true }
                         }
                     },
                 )
@@ -143,6 +193,7 @@ fun RcubeApp() {
                     onOpenProfile = { navController.navigate(ProfileEditorRoute(it)) },
                     onCreateProfile = { navController.navigate(ProfileEditorRoute(null)) },
                     onOpenNotifications = { navController.navigate(NotificationsRoute) },
+                    onOpenAccount = { navController.switchTab(AccountRoute, session.mode) },
                     contentPadding = innerPadding,
                 )
             }
@@ -160,11 +211,19 @@ fun RcubeApp() {
             // ---- Organizer tabs ----
             composable<DiscoverRoute> {
                 DiscoverScreen(
-                    onSearch = { c, e, r ->
-                        navController.navigate(SearchResultsRoute(c.name, e.name, r))
+                    onOpenCreator = {
+                        navController.navigate(CreatorPublicRoute(it, EventType.OTHER.name))
                     },
+                    onOpenFilters = { navController.navigate(FiltersRoute) },
                     onOpenNotifications = { navController.navigate(NotificationsRoute) },
+                    onOpenAccount = { navController.switchTab(AccountRoute, session.mode) },
                     contentPadding = innerPadding,
+                )
+            }
+            composable<FiltersRoute> {
+                FiltersScreen(
+                    onApply = { navController.popBackStack() },
+                    onBack = { navController.popBackStack() },
                 )
             }
             composable<MyBookingsRoute> {
@@ -184,6 +243,8 @@ fun RcubeApp() {
                         navController.navigateHome(homeRouteFor(repo.session.value.mode))
                     },
                     onOpenNotifications = { navController.navigate(NotificationsRoute) },
+                    onOpenSupport = { navController.navigate(SupportRoute) },
+                    onOpenTerms = { navController.navigate(TermsRoute) },
                     onLogout = {
                         repo.logout()
                         navController.navigateHome(PhoneRoute)
@@ -194,6 +255,12 @@ fun RcubeApp() {
             composable<NotificationsRoute> {
                 NotificationsScreen(onBack = { navController.popBackStack() })
             }
+            composable<SupportRoute> {
+                SupportScreen(onBack = { navController.popBackStack() })
+            }
+            composable<TermsRoute> {
+                LegalScreen(onBack = { navController.popBackStack() })
+            }
 
             // ---- Creator details ----
             composable<ProfileEditorRoute> { entry ->
@@ -201,8 +268,13 @@ fun RcubeApp() {
                 ProfileEditorScreen(
                     profileId = route.profileId,
                     onBack = { navController.popBackStack() },
-                    onAddService = { navController.navigate(ServiceEditorRoute(it)) },
+                    onOpenService = { pid, sid -> navController.navigate(ServiceEditorRoute(pid, sid)) },
                     onPreview = { navController.navigate(CreatorPublicRoute(it, null)) },
+                    onProfileCreated = { id ->
+                        navController.navigate(ProfileEditorRoute(id)) {
+                            popUpTo(CreatorProfilesRoute)
+                        }
+                    },
                     onSaved = { navController.popBackStack() },
                 )
             }
@@ -210,6 +282,7 @@ fun RcubeApp() {
                 val route = entry.toRoute<ServiceEditorRoute>()
                 ServiceEditorScreen(
                     profileId = route.profileId,
+                    serviceId = route.serviceId,
                     onBack = { navController.popBackStack() },
                     onSaved = { navController.popBackStack() },
                 )
@@ -232,25 +305,11 @@ fun RcubeApp() {
             }
 
             // ---- Organizer details ----
-            composable<SearchResultsRoute> { entry ->
-                val route = entry.toRoute<SearchResultsRoute>()
-                SearchResultsScreen(
-                    category = CreatorCategory.valueOf(route.category),
-                    eventType = EventType.valueOf(route.eventType),
-                    radiusKm = route.radiusKm,
-                    onBack = { navController.popBackStack() },
-                    onOpenProfile = {
-                        navController.navigate(CreatorPublicRoute(it, route.eventType))
-                    },
-                )
-            }
             composable<CreatorPublicRoute> { entry ->
                 val route = entry.toRoute<CreatorPublicRoute>()
-                val eventType = route.eventType?.let { EventType.valueOf(it) }
                 CreatorPublicScreen(
                     profileId = route.profileId,
-                    eventType = eventType,
-                    bookable = eventType != null,
+                    bookable = route.eventType != null,
                     onBack = { navController.popBackStack() },
                     onBook = { serviceId ->
                         navController.navigate(

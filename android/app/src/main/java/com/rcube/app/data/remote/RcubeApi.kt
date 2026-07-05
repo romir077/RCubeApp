@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
+import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonObject
@@ -19,6 +20,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.logging.HttpLoggingInterceptor
 import java.util.concurrent.TimeUnit
+import com.rcube.app.data.model.Service
 
 class ApiException(message: String) : Exception(message)
 
@@ -87,9 +89,36 @@ class RcubeApi(
     suspend fun getState(token: String): StateDto =
         decode(rpc("getState", token, JsonObject(emptyMap())))
 
-    suspend fun searchCreators(token: String, category: String, radiusKm: Int): List<ProfileDto> =
+    suspend fun setName(token: String, firstName: String, lastName: String): UserDto =
+        decode(rpc("setName", token, buildJsonObject {
+            put("firstName", firstName); put("lastName", lastName)
+        }))
+
+    suspend fun setUserPhoto(token: String, base64: String): UserDto =
+        decode(rpc("setUserPhoto", token, buildJsonObject { put("base64", base64) }))
+
+    suspend fun submitAadhaar(
+        token: String,
+        frontBase64: String?,
+        backBase64: String?,
+    ): UserDto =
+        decode(rpc("submitAadhaar", token, buildJsonObject {
+            if (frontBase64 != null) put("frontBase64", frontBase64)
+            if (backBase64 != null) put("backBase64", backBase64)
+        }))
+
+    suspend fun searchCreators(
+        token: String,
+        category: String,
+        radiusKm: Int,
+        lat: Double?,
+        lng: Double?,
+    ): List<ProfileDto> =
         decode(rpc("searchCreators", token, buildJsonObject {
-            put("category", category); put("radiusKm", radiusKm)
+            put("category", category)
+            put("radiusKm", radiusKm)
+            if (lat != null) put("lat", lat)
+            if (lng != null) put("lng", lng)
         }))
 
     suspend fun createProfile(
@@ -99,13 +128,103 @@ class RcubeApi(
         bio: String,
         city: String,
         languages: List<String>,
+        instagram: String?,
+        youtube: String?,
+        lat: Double?,
+        lng: Double?,
+        services: List<Service>,
     ): ProfileDto = decode(rpc("createProfile", token, buildJsonObject {
         put("displayName", displayName)
         put("category", category)
         put("bio", bio)
         put("city", city)
         putJsonArray("languages") { languages.forEach { add(it) } }
+        put("instagram", instagram ?: "")
+        put("youtube", youtube ?: "")
+        if (lat != null) put("lat", lat)
+        if (lng != null) put("lng", lng)
+        putJsonArray("services") {
+            services.forEach { s ->
+                addJsonObject {
+                    put("title", s.title)
+                    put("pricePaise", s.pricePaise)
+                    if (s.durationMinutes != null) put("durationMinutes", s.durationMinutes)
+                    if (s.description != null) put("description", s.description)
+                }
+            }
+        }
     }))
+
+    suspend fun updateProfile(
+        token: String,
+        profileId: String,
+        category: String,
+        bio: String,
+        city: String,
+        languages: List<String>,
+        instagram: String?,
+        youtube: String?,
+    ): ProfileDto = decode(rpc("updateProfile", token, buildJsonObject {
+        put("profileId", profileId)
+        put("category", category)
+        put("bio", bio)
+        put("city", city)
+        putJsonArray("languages") { languages.forEach { add(it) } }
+        put("instagram", instagram ?: "")
+        put("youtube", youtube ?: "")
+    }))
+
+    suspend fun addPortfolioMedia(
+        token: String,
+        profileId: String,
+        type: String,
+        base64: String,
+    ): ProfileDto = decode(rpc("addPortfolioMedia", token, buildJsonObject {
+        put("profileId", profileId)
+        put("type", type)
+        put("base64", base64)
+    }))
+
+    suspend fun deletePortfolioMedia(token: String, profileId: String, slot: Int): ProfileDto =
+        decode(rpc("deletePortfolioMedia", token, buildJsonObject {
+            put("profileId", profileId); put("slot", slot)
+        }))
+
+    suspend fun setProfilePhoto(token: String, profileId: String, base64: String): ProfileDto =
+        decode(rpc("setProfilePhoto", token, buildJsonObject {
+            put("profileId", profileId); put("base64", base64)
+        }))
+
+    suspend fun setProfileActive(token: String, profileId: String, active: Boolean): ProfileDto =
+        decode(rpc("setProfileActive", token, buildJsonObject {
+            put("profileId", profileId); put("active", active)
+        }))
+
+    suspend fun deleteProfile(token: String, profileId: String) {
+        rpc("deleteProfile", token, buildJsonObject { put("profileId", profileId) })
+    }
+
+    suspend fun updateService(
+        token: String,
+        profileId: String,
+        serviceId: String,
+        title: String,
+        pricePaise: Long,
+        durationMinutes: Int?,
+        description: String?,
+    ): ProfileDto = decode(rpc("updateService", token, buildJsonObject {
+        put("profileId", profileId)
+        put("serviceId", serviceId)
+        put("title", title)
+        put("pricePaise", pricePaise)
+        if (durationMinutes != null) put("durationMinutes", durationMinutes)
+        if (description != null) put("description", description)
+    }))
+
+    suspend fun deleteService(token: String, profileId: String, serviceId: String): ProfileDto =
+        decode(rpc("deleteService", token, buildJsonObject {
+            put("profileId", profileId); put("serviceId", serviceId)
+        }))
 
     suspend fun addService(
         token: String,
@@ -156,8 +275,16 @@ class RcubeApi(
             put("bookingId", bookingId); put("otp", otp)
         }))
 
-    suspend fun completeBooking(token: String, bookingId: String): BookingDto =
-        decode(rpc("completeBooking", token, buildJsonObject { put("bookingId", bookingId) }))
+    suspend fun completeBooking(
+        token: String,
+        bookingId: String,
+        rating: Int,
+        comment: String,
+    ): BookingDto = decode(rpc("completeBooking", token, buildJsonObject {
+        put("bookingId", bookingId)
+        if (rating > 0) put("rating", rating)
+        if (comment.isNotBlank()) put("comment", comment)
+    }))
 
     suspend fun cancelBooking(token: String, bookingId: String): BookingDto =
         decode(rpc("cancelBooking", token, buildJsonObject { put("bookingId", bookingId) }))

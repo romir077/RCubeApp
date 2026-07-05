@@ -1,13 +1,13 @@
 package com.rcube.app.feature.creator
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -19,14 +19,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.rcube.app.core.designsystem.component.OtpBoxes
+import com.rcube.app.core.designsystem.component.OtpInput
 import com.rcube.app.core.designsystem.component.PrimaryButton
 import com.rcube.app.core.designsystem.component.RcubeTopBar
 import com.rcube.app.core.util.formatLong
@@ -47,14 +43,15 @@ fun StartEventScreen(
     var otp by remember { mutableStateOf("") }
     var error by remember { mutableStateOf(false) }
     var starting by remember { mutableStateOf(false) }
-    val focusRequester = remember { FocusRequester() }
 
     Scaffold(topBar = { RcubeTopBar(title = "Start Event", onBack = onBack) }) { padding ->
         Column(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 24.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .imePadding(),
         ) {
             if (booking != null) {
                 Text(booking.serviceTitle, style = MaterialTheme.typography.headlineSmall)
@@ -71,22 +68,11 @@ fun StartEventScreen(
             )
             Spacer(Modifier.height(24.dp))
 
-            Box {
-                OtpBoxes(value = otp, length = 4)
-                BasicTextField(
-                    value = otp,
-                    onValueChange = {
-                        if (it.length <= 4 && it.all(Char::isDigit)) {
-                            otp = it; error = false
-                        }
-                    },
-                    modifier = Modifier
-                        .matchParentSize()
-                        .focusRequester(focusRequester)
-                        .alpha(0f),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                )
-            }
+            OtpInput(
+                value = otp,
+                onValueChange = { otp = it; error = false },
+                length = 4,
+            )
 
             if (error) {
                 Spacer(Modifier.height(12.dp))
@@ -99,7 +85,7 @@ fun StartEventScreen(
 
             Spacer(Modifier.height(28.dp))
             PrimaryButton(
-                text = "Start performance",
+                text = "Let's go",
                 enabled = otp.length == 4 && !starting,
                 loading = starting,
                 onClick = {
@@ -108,7 +94,12 @@ fun StartEventScreen(
                         starting = true
                         val ok = repo.startEventWithOtp(bookingId, otp)
                         starting = false
-                        if (ok) onStarted() else error = true
+                        if (ok) {
+                            onStarted()
+                        } else {
+                            error = true
+                            otp = "" // wrong code: clear and return cursor to the first box
+                        }
                     }
                 },
             )

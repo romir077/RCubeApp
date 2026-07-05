@@ -67,7 +67,7 @@ object SeedData {
             bio = "Acoustic guitarist & vocalist. Soulful covers for warm evenings.",
             city = "Bengaluru", languages = listOf("English", "Kannada"),
             status = ProfileStatus.APPROVED, instagram = "@meera.strings",
-            distanceKm = 4.2, completedBookings = 27,
+            lat = 12.9352, lng = 77.6245, completedBookings = 27,
             services = listOf(
                 Service("m1", "30 Minute Live Performance", 250000, 30, null),
                 Service("m2", "60 Minute Live Performance", 400000, 60, "Covers + requests."),
@@ -79,7 +79,7 @@ object SeedData {
             bio = "Rock & blues guitarist. High energy sets for parties and fests.",
             city = "Bengaluru", languages = listOf("English", "Hindi"),
             status = ProfileStatus.APPROVED, instagram = "@sam.plays",
-            distanceKm = 8.9, completedBookings = 15,
+            lat = 12.9116, lng = 77.6389, completedBookings = 15,
             services = listOf(
                 Service("sa1", "45 Minute Set", 300000, 45, null),
                 Service("sa2", "90 Minute Set", 550000, 90, null),
@@ -91,7 +91,7 @@ object SeedData {
             bio = "Candid & portrait photographer. I chase real moments, not poses.",
             city = "Bengaluru", languages = listOf("English"),
             status = ProfileStatus.APPROVED, instagram = "@priya.frames",
-            distanceKm = 3.1, completedBookings = 41,
+            lat = 12.9719, lng = 77.6412, completedBookings = 41,
             services = listOf(
                 Service("p1", "Birthday Photoshoot", 500000, 120, "2 hours, edited gallery."),
                 Service("p2", "Wedding Photography", 1800000, null, "Full day coverage."),
@@ -103,7 +103,7 @@ object SeedData {
             bio = "Bridal & party mehendi. Intricate, long-lasting designs.",
             city = "Bengaluru", languages = listOf("Hindi", "English"),
             status = ProfileStatus.APPROVED, instagram = "@sneha.mehendi",
-            distanceKm = 6.4, completedBookings = 33,
+            lat = 12.9250, lng = 77.5938, completedBookings = 33,
             services = listOf(
                 Service("sn1", "Party Mehendi", 250000, null, "Up to 5 guests."),
                 Service("sn2", "Bridal Mehendi", 700000, null, "Full bridal, both hands & feet."),
@@ -114,7 +114,7 @@ object SeedData {
             category = CreatorCategory.SINGER,
             bio = "Playback-style vocalist. Bollywood, ghazals and unplugged.",
             city = "Bengaluru", languages = listOf("Hindi", "Urdu", "English"),
-            status = ProfileStatus.APPROVED, distanceKm = 11.2, completedBookings = 19,
+            status = ProfileStatus.APPROVED, lat = 12.9698, lng = 77.7500, completedBookings = 19,
             services = listOf(
                 Service("k1", "Unplugged Evening", 450000, 60, null),
             ),
@@ -125,7 +125,7 @@ object SeedData {
             bio = "Contemporary & semi-classical performances for stage events.",
             city = "Bengaluru", languages = listOf("English", "Tamil"),
             status = ProfileStatus.APPROVED, instagram = "@rhea.moves",
-            distanceKm = 5.5, completedBookings = 22,
+            lat = 13.0035, lng = 77.5647, completedBookings = 22,
             services = listOf(
                 Service("r1", "Solo Performance", 400000, 15, "One choreographed piece."),
                 Service("r2", "Event Set", 700000, 40, "Three pieces."),

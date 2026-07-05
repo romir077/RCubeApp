@@ -5,10 +5,13 @@ import com.rcube.app.data.model.BookingStatus
 import com.rcube.app.data.model.CreatorCategory
 import com.rcube.app.data.model.CreatorProfile
 import com.rcube.app.data.model.EventType
+import com.rcube.app.data.model.MediaType
 import com.rcube.app.data.model.NotificationItem
 import com.rcube.app.data.model.NotificationType
 import com.rcube.app.data.model.PayoutStatus
+import com.rcube.app.data.model.PortfolioItem
 import com.rcube.app.data.model.ProfileStatus
+import com.rcube.app.data.model.Review
 import com.rcube.app.data.model.Service
 import java.time.Instant
 import java.time.LocalDate
@@ -39,6 +42,19 @@ fun ServiceDto.toDomain() = Service(
     description = description,
 )
 
+fun PortfolioDto.toDomain() = PortfolioItem(
+    slot = slot,
+    type = runCatching { MediaType.valueOf(type) }.getOrDefault(MediaType.IMAGE),
+    thumbUrl = thumbUrl,
+    fullUrl = fullUrl.ifBlank { thumbUrl },
+)
+
+fun ReviewDto.toDomain() = Review(
+    organizerName = organizerName,
+    rating = rating,
+    comment = comment,
+)
+
 fun ProfileDto.toDomain() = CreatorProfile(
     id = id,
     ownerUserId = ownerUserId,
@@ -49,11 +65,20 @@ fun ProfileDto.toDomain() = CreatorProfile(
     languages = languages,
     status = parseProfileStatus(status),
     services = services.map { it.toDomain() },
+    portfolio = portfolio.map { it.toDomain() },
+    profilePhotoUrl = profilePhotoUrl,
     instagram = instagram,
     youtube = youtube,
     rejectionReason = rejectionReason,
+    lat = lat,
+    lng = lng,
     distanceKm = distanceKm,
     completedBookings = completedBookings,
+    ownerVerified = ownerVerified,
+    active = active,
+    ratingAvg = ratingAvg,
+    ratingCount = ratingCount,
+    reviews = reviews.map { it.toDomain() },
 )
 
 fun BookingDto.toDomain() = Booking(

@@ -6,17 +6,28 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Password
 import androidx.compose.material.icons.filled.Payment
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -25,9 +36,11 @@ import com.rcube.app.core.designsystem.component.BookingStatusPill
 import com.rcube.app.core.designsystem.component.InfoRow
 import com.rcube.app.core.designsystem.component.PrimaryButton
 import com.rcube.app.core.designsystem.component.RcubeCard
+import com.rcube.app.core.designsystem.component.RcubeTextField
 import com.rcube.app.core.designsystem.component.RcubeTopBar
 import com.rcube.app.core.designsystem.component.SecondaryButton
 import com.rcube.app.core.designsystem.component.SectionHeader
+import com.rcube.app.core.designsystem.theme.RcubeTheme
 import com.rcube.app.core.util.formatInr
 import com.rcube.app.core.util.formatLong
 import com.rcube.app.data.model.BookingStatus
@@ -44,6 +57,7 @@ fun OrganizerBookingDetailScreen(
     val repo = LocalAppContainer.current.repository
     val bookings by repo.organizerBookings.collectAsStateWithLifecycle()
     val booking = bookings.firstOrNull { it.id == bookingId }
+    var showRating by remember { mutableStateOf(false) }
 
     Scaffold(topBar = { RcubeTopBar(title = "Booking", onBack = onBack) }) { padding ->
         if (booking == null) {
@@ -114,7 +128,7 @@ fun OrganizerBookingDetailScreen(
                 )
                 BookingStatus.IN_PROGRESS -> PrimaryButton(
                     text = "Mark as completed",
-                    onClick = { repo.completeBooking(booking.id) },
+                    onClick = { showRating = true },
                     leadingIcon = Icons.Filled.CheckCircle,
                 )
                 BookingStatus.COMPLETED -> InfoNote(
@@ -123,6 +137,62 @@ fun OrganizerBookingDetailScreen(
             }
         }
     }
+
+    if (showRating && booking != null) {
+        RatingDialog(
+            creatorName = booking.creatorName,
+            onDismiss = { showRating = false },
+            onSubmit = { rating, comment ->
+                repo.completeBooking(booking.id, rating, comment)
+                showRating = false
+            },
+        )
+    }
+}
+
+@Composable
+private fun RatingDialog(
+    creatorName: String,
+    onDismiss: () -> Unit,
+    onSubmit: (rating: Int, comment: String) -> Unit,
+) {
+    var rating by remember { mutableIntStateOf(5) }
+    var comment by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rate $creatorName") },
+        text = {
+            Column {
+                Text(
+                    "Your rating and comment appear on their profile.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+                Row {
+                    (1..5).forEach { star ->
+                        Icon(
+                            Icons.Filled.Star,
+                            contentDescription = "$star star",
+                            tint = if (star <= rating) RcubeTheme.semantic.warning
+                            else MaterialTheme.colorScheme.outlineVariant,
+                            modifier = Modifier.size(36.dp).clickable { rating = star },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                RcubeTextField(
+                    "Comment (optional)", comment, { comment = it },
+                    singleLine = false, minLines = 2,
+                    placeholder = "How was the experience?",
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSubmit(rating, comment.trim()) }) { Text("Submit & complete") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 @Composable

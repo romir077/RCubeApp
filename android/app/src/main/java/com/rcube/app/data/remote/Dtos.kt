@@ -14,8 +14,12 @@ data class AuthDto(
 data class UserDto(
     val id: String,
     val phone: String,
-    val displayName: String,
+    val displayName: String = "",
+    val firstName: String = "",
+    val lastName: String = "",
     val defaultMode: String = "creator",
+    val aadhaarStatus: String = "NOT_SUBMITTED",
+    val profilePhotoUrl: String? = null,
 )
 
 @Serializable
@@ -28,6 +32,22 @@ data class ServiceDto(
 )
 
 @Serializable
+data class PortfolioDto(
+    val slot: Int = 0,
+    val type: String = "IMAGE",
+    val thumbUrl: String = "",
+    val fullUrl: String = "",
+)
+
+@Serializable
+data class ReviewDto(
+    val organizerName: String = "Organizer",
+    val rating: Int = 0,
+    val comment: String = "",
+    val createdAt: Long = 0,
+)
+
+@Serializable
 data class ProfileDto(
     val id: String,
     val ownerUserId: String,
@@ -37,12 +57,21 @@ data class ProfileDto(
     val city: String = "",
     val languages: List<String> = emptyList(),
     val status: String,
+    val active: Boolean = true,
     val services: List<ServiceDto> = emptyList(),
+    val portfolio: List<PortfolioDto> = emptyList(),
+    val profilePhotoUrl: String? = null,
     val instagram: String? = null,
     val youtube: String? = null,
     val rejectionReason: String? = null,
+    val lat: Double? = null,
+    val lng: Double? = null,
     val distanceKm: Double? = null,
     val completedBookings: Int = 0,
+    val ownerVerified: Boolean = false,
+    val ratingAvg: Double? = null,
+    val ratingCount: Int = 0,
+    val reviews: List<ReviewDto> = emptyList(),
 )
 
 @Serializable
@@ -80,6 +109,7 @@ data class NotificationDto(
 
 @Serializable
 data class StateDto(
+    val me: UserDto? = null,
     val myProfiles: List<ProfileDto> = emptyList(),
     val creatorBookings: List<BookingDto> = emptyList(),
     val organizerBookings: List<BookingDto> = emptyList(),

@@ -11,12 +11,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -36,18 +38,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.rcube.app.core.designsystem.component.OtpBoxes
+import com.rcube.app.core.designsystem.component.OtpInput
 import com.rcube.app.core.designsystem.component.PrimaryButton
+import com.rcube.app.core.designsystem.component.RcubeTextField
 import com.rcube.app.core.designsystem.component.RcubeTopBar
 import com.rcube.app.core.designsystem.component.TextActionButton
 import com.rcube.app.core.designsystem.theme.RcubePalette
@@ -82,7 +82,9 @@ fun PhoneScreen(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 24.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .imePadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(Modifier.height(72.dp))
@@ -158,11 +160,9 @@ fun OtpScreen(
     var secondsLeft by remember { mutableIntStateOf(30) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    val focusRequester = remember { FocusRequester() }
     val complete = otp.length == 6
 
     LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
         while (secondsLeft > 0) {
             delay(1000)
             secondsLeft -= 1
@@ -174,7 +174,9 @@ fun OtpScreen(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 24.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .imePadding(),
         ) {
             Text("Enter the code", style = MaterialTheme.typography.displaySmall)
             Spacer(Modifier.height(8.dp))
@@ -185,18 +187,11 @@ fun OtpScreen(
             )
             Spacer(Modifier.height(32.dp))
 
-            Box {
-                OtpBoxes(value = otp, length = 6)
-                BasicTextField(
-                    value = otp,
-                    onValueChange = { if (it.length <= 6 && it.all(Char::isDigit)) otp = it },
-                    modifier = Modifier
-                        .matchParentSize()
-                        .focusRequester(focusRequester)
-                        .alpha(0f),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                )
-            }
+            OtpInput(
+                value = otp,
+                onValueChange = { otp = it },
+                length = 6,
+            )
 
             Spacer(Modifier.height(20.dp))
             if (secondsLeft > 0) {
@@ -229,8 +224,11 @@ fun OtpScreen(
                         error = null
                         val ok = repo.verifyOtp(otp)
                         loading = false
-                        if (ok) onVerified() else {
+                        if (ok) {
+                            onVerified()
+                        } else {
                             error = "We couldn't verify that code. Please try again."
+                            otp = "" // clear and return cursor to the first box
                         }
                     }
                 },
@@ -240,6 +238,47 @@ fun OtpScreen(
                 "Tip: any 6-digit code works while the backend is in demo mode.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+fun NameEntryScreen(
+    onSaved: () -> Unit,
+) {
+    val repo = LocalAppContainer.current.repository
+    var firstName by remember { mutableStateOf("") }
+    var lastName by remember { mutableStateOf("") }
+    val valid = firstName.isNotBlank() && lastName.isNotBlank()
+
+    Scaffold { padding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .imePadding(),
+        ) {
+            Spacer(Modifier.height(48.dp))
+            Text("What's your name?", style = MaterialTheme.typography.displaySmall)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "This is how you'll appear on RCube. Make sure it matches your Aadhaar — " +
+                    "you can edit it until your identity is verified.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(28.dp))
+            RcubeTextField("First name", firstName, { firstName = it }, placeholder = "Arjun")
+            Spacer(Modifier.height(16.dp))
+            RcubeTextField("Last name", lastName, { lastName = it }, placeholder = "Rao")
+            Spacer(Modifier.height(28.dp))
+            PrimaryButton(
+                text = "Continue",
+                enabled = valid,
+                onClick = { repo.setName(firstName, lastName); onSaved() },
             )
         }
     }

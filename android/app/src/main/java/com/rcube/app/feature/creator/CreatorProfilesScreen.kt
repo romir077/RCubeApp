@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -20,14 +21,20 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,7 +42,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
+import com.rcube.app.core.designsystem.theme.RcubeTheme
 import com.rcube.app.core.designsystem.component.ProfileStatusPill
+import com.rcube.app.feature.common.NotificationBell
 import com.rcube.app.core.designsystem.component.RcubeCard
 import com.rcube.app.core.designsystem.component.RcubeTopBar
 import com.rcube.app.core.designsystem.component.VerifiedBadge
@@ -43,47 +53,61 @@ import com.rcube.app.data.model.CreatorProfile
 import com.rcube.app.data.model.ProfileStatus
 import com.rcube.app.di.LocalAppContainer
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreatorProfilesScreen(
     onOpenProfile: (String) -> Unit,
     onCreateProfile: () -> Unit,
     onOpenNotifications: () -> Unit,
+    onOpenAccount: () -> Unit,
     contentPadding: PaddingValues,
 ) {
     val repo = LocalAppContainer.current.repository
     val profiles by repo.myProfiles.collectAsStateWithLifecycle()
+    val session by repo.session.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    var refreshing by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             RcubeTopBar(title = "My Profiles", actions = {
-                IconButton(onClick = onOpenNotifications) {
-                    Icon(Icons.Filled.NotificationsNone, contentDescription = "Notifications")
-                }
+                NotificationBell(onClick = onOpenNotifications)
             })
         },
     ) { inner ->
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(
-                start = 20.dp, end = 20.dp,
-                top = inner.calculateTopPadding() + 4.dp,
-                bottom = contentPadding.calculateBottomPadding() + 24.dp,
-            ),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+        PullToRefreshBox(
+            isRefreshing = refreshing,
+            onRefresh = {
+                scope.launch { refreshing = true; repo.refresh(); refreshing = false }
+            },
+            modifier = Modifier.fillMaxSize(),
         ) {
-            item {
-                Text(
-                    "Each profile is one craft. Approved profiles are discoverable by organizers.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 4.dp),
-                )
-            }
-            items(profiles, key = { it.id }) { profile ->
-                ProfileCard(profile, onClick = { onOpenProfile(profile.id) })
-            }
-            item {
-                CreateProfileButton(onClick = onCreateProfile)
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = 20.dp, end = 20.dp,
+                    top = inner.calculateTopPadding() + 4.dp,
+                    bottom = contentPadding.calculateBottomPadding() + 24.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                if (!session.isVerified) {
+                    item { VerifyIdentityBanner(onClick = onOpenAccount) }
+                }
+                item {
+                    Text(
+                        "Each profile is one craft. Published profiles are discoverable once your identity is verified.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 4.dp),
+                    )
+                }
+                items(profiles, key = { it.id }) { profile ->
+                    ProfileCard(profile, onClick = { onOpenProfile(profile.id) })
+                }
+                item {
+                    CreateProfileButton(onClick = onCreateProfile)
+                }
             }
         }
     }
@@ -132,6 +156,32 @@ private fun ProfileCard(profile: CreatorProfile, onClick: () -> Unit) {
                 color = MaterialTheme.colorScheme.error,
             )
         }
+    }
+}
+
+@Composable
+private fun VerifyIdentityBanner(onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(RcubeTheme.semantic.warningContainer)
+            .clickable(onClick = onClick)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Filled.Shield, contentDescription = null,
+            tint = RcubeTheme.semantic.onWarningContainer)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text("Verify your identity", style = MaterialTheme.typography.titleSmall,
+                color = RcubeTheme.semantic.onWarningContainer)
+            Text("Verify your Aadhaar in Account to start receiving bookings.",
+                style = MaterialTheme.typography.bodySmall,
+                color = RcubeTheme.semantic.onWarningContainer)
+        }
+        Icon(Icons.Filled.ChevronRight, contentDescription = null,
+            tint = RcubeTheme.semantic.onWarningContainer)
     }
 }
 
